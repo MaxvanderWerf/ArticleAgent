@@ -2,9 +2,9 @@
 """
 Agentic Writer System
 
-An autonomous multi-agent system that writes an article about AI agents,
-explaining how they work, what they can do, and providing a practical example,
-all while reflecting on its own writing process.
+An autonomous multi-agent system that writes articles on any topic,
+using a collaborative approach with specialized AI agents for planning,
+writing, and reviewing content.
 """
 
 import json
@@ -52,57 +52,100 @@ class PlannerAgent(Agent):
         """Create an article outline with sections and prompts."""
         super().act(task, context)
         
-        self.log("Creating article outline...")
+        topic = context.get("topic", "General Topic")
+        description = context.get("description", "A general article")
+        style = context.get("style", "conversational")
+        
+        self.log(f"Creating article outline for topic: {topic}")
         time.sleep(1)  # Simulate thinking time
         
         if USE_REAL_API:
-            # We could use the API to generate a dynamic outline,
-            # but for consistency we'll use the predefined one
-            self.log("Using predefined outline structure with real API for content generation")
+            planning_prompt = f"""
+            Create a detailed outline for an article on the topic: "{topic}"
+            
+            Description: {description}
+            
+            Your outline should include:
+            1. A catchy title for the article
+            2. 5-6 main sections (including introduction and conclusion)
+            3. For each section, provide a brief description of what should be covered
+            
+            Format your response as a JSON object with the following structure:
+            {{
+                "title": "Article Title",
+                "sections": [
+                    {{
+                        "name": "section_id",
+                        "title": "Section Title",
+                        "prompt": "Detailed instructions for writing this section"
+                    }},
+                    ...
+                ]
+            }}
+            
+            Ensure your response is valid JSON that can be parsed. Do not include any text before or after the JSON object.
+            """
+            
+            outline_json = self.system.generate_text(planning_prompt)
+            
+            # Try to parse the JSON response with improved error handling
+            try:
+                # Clean up the response to extract just the JSON part
+                json_start = outline_json.find('{')
+                json_end = outline_json.rfind('}') + 1
+                if json_start >= 0 and json_end > json_start:
+                    cleaned_json = outline_json[json_start:json_end]
+                    outline = json.loads(cleaned_json)
+                    self.log("Successfully generated outline using API")
+                else:
+                    raise ValueError("Could not find valid JSON in the response")
+            except Exception as e:
+                self.log(f"Failed to parse JSON from API response: {e}")
+                self.log("Using default outline structure")
+                outline = self._create_default_outline(topic, description)
+        else:
+            outline = self._create_default_outline(topic, description)
         
-        outline = {
-            "title": "My Life as an AI Agent: A Story",
+        self.log("Outline complete!")
+        return {"outline": outline}
+    
+    def _create_default_outline(self, topic: str, description: str) -> Dict:
+        """Create a default outline structure for the given topic."""
+        return {
+            "title": f"Understanding {topic}: A Comprehensive Guide",
             "sections": [
                 {
                     "name": "intro",
                     "title": "Introduction",
-                    "prompt": "Write a fun intro about AI agents"
+                    "prompt": f"Write an engaging introduction about {topic}. {description}"
                 },
                 {
-                    "name": "how_agents_work",
-                    "title": "How AI Agents Work",
-                    "prompt": "Explain how AI agents work"
+                    "name": "background",
+                    "title": f"Background of {topic}",
+                    "prompt": f"Explain the history and context of {topic}"
                 },
                 {
-                    "name": "agent_uses",
-                    "title": "What You Can Do with AI Agents",
-                    "prompt": "List uses of AI agents"
+                    "name": "key_aspects",
+                    "title": f"Key Aspects of {topic}",
+                    "prompt": f"Describe the main components or aspects of {topic}"
                 },
                 {
-                    "name": "example",
-                    "title": "Example: Planning a Weekend Trip",
-                    "prompt": "Plan a weekend trip",
-                    "sub_prompts": [
-                        "Plan a weekend trip - step 1: search weather",
-                        "Plan a weekend trip - step 2: book a cabin",
-                        "Plan a weekend trip - step 3: suggest a hike"
-                    ]
+                    "name": "practical_applications",
+                    "title": f"Practical Applications",
+                    "prompt": f"Discuss how {topic} is applied in real-world scenarios"
                 },
                 {
-                    "name": "reflection",
-                    "title": "Reflection: How I Wrote This Article",
-                    "prompt": "Reflect on writing this article"
+                    "name": "future_trends",
+                    "title": f"Future Trends and Developments",
+                    "prompt": f"Explore potential future developments related to {topic}"
                 },
                 {
                     "name": "conclusion",
                     "title": "Conclusion",
-                    "prompt": "Write a conclusion about AI agents"
+                    "prompt": f"Write a thoughtful conclusion about {topic}"
                 }
             ]
         }
-        
-        self.log("Outline complete!")
-        return {"outline": outline}
 
 class WriterAgent(Agent):
     """Agent responsible for generating content for each section."""
@@ -113,23 +156,44 @@ class WriterAgent(Agent):
         
         outline = context.get("outline", {})
         section = context.get("section", {})
+        topic = context.get("topic", "General Topic")
+        style = context.get("style", "conversational")
         
-        self.log(f"Writing section: {section.get('title', 'Unknown')}")
+        self.log(f"Writing section: {section.get('title', 'Unknown')} in {style} style")
         
-        content = ""
+        # Style-specific instructions
+        style_instructions = {
+            "conversational": "Write in a friendly, casual tone as if talking to a friend. Use personal pronouns, contractions, and occasional rhetorical questions.",
+            "professional": "Write in a formal, authoritative tone suitable for business or academic contexts. Use precise language, avoid contractions, and maintain a structured approach.",
+            "storytelling": "Write in a narrative style with vivid descriptions, anecdotes, and emotional elements. Create a journey for the reader with a clear beginning, middle, and end.",
+            "instructional": "Write in a clear, step-by-step manner with practical advice and actionable tips. Use imperative verbs and focus on helping the reader achieve specific outcomes."
+        }
         
-        if "sub_prompts" in section:
-            # Handle sections with sub-prompts (like the example section)
-            content = f"# {section['title']}\n\n"
-            content += "Let me show you how I'd approach planning a weekend getaway:\n\n"
-            
-            for sub_prompt in section["sub_prompts"]:
-                sub_content = self.system.generate_text(sub_prompt)
-                content += f"- **{sub_prompt.split(':')[1].strip()}**: {sub_content}\n\n"
-        else:
-            # Handle regular sections
-            content = f"# {section['title']}\n\n"
-            content += self.system.generate_text(section["prompt"])
+        # Get the appropriate style instruction
+        style_instruction = style_instructions.get(style, style_instructions["conversational"])
+        
+        # Enhance the prompt with the topic context and style-specific instructions
+        enhanced_prompt = f"""
+        Write content for an article section titled "{section.get('title')}" about {topic}.
+        
+        Section prompt: {section.get('prompt', 'Write informative content')}
+        
+        Style instruction: {style_instruction}
+        
+        Guidelines:
+        1. {style_instruction}
+        2. Use markdown formatting for headings, lists, and emphasis
+        3. Include relevant examples, metaphors, or analogies to illustrate concepts
+        4. Address the reader directly to create a connection
+        5. Aim for approximately 400-500 words for this section
+        6. Include 2-3 subheadings within the section to organize the content
+        7. End with a smooth transition to the next section
+        
+        Do not include the main section title in your response as it will be added separately.
+        """
+        
+        # Generate content without the section title
+        content = self.system.generate_text(enhanced_prompt)
         
         self.log(f"Finished writing section: {section.get('title', 'Unknown')}")
         return {"content": content}
@@ -143,14 +207,38 @@ class ReviewerAgent(Agent):
         
         content = context.get("content", "")
         section = context.get("section", {})
+        topic = context.get("topic", "General Topic")
+        style = context.get("style", "conversational")
         
-        self.log(f"Reviewing section: {section.get('title', 'Unknown')}")
+        self.log(f"Reviewing section: {section.get('title', 'Unknown')} in {style} style")
+        
+        # Style-specific review instructions
+        style_review = {
+            "conversational": "Ensure the text maintains a friendly, casual tone throughout. Check for natural flow and conversational elements.",
+            "professional": "Ensure the text maintains a formal, authoritative tone. Check for precision, clarity, and proper structure.",
+            "storytelling": "Ensure the text has narrative elements, vivid descriptions, and emotional appeal. Check for storytelling flow and engagement.",
+            "instructional": "Ensure the text provides clear, actionable guidance. Check for practical advice and logical step-by-step progression."
+        }
+        
+        # Get the appropriate style review instruction
+        review_instruction = style_review.get(style, style_review["conversational"])
         
         if USE_REAL_API:
             # Use the API to enhance the content
             review_prompt = f"""
-            Review and enhance the following content for an article section titled "{section.get('title')}".
-            Add personality, improve flow, and ensure it's engaging for readers.
+            Review and enhance the following content for an article section titled "{section.get('title')}" about {topic}.
+            
+            Style: {style}
+            
+            {review_instruction}
+            
+            Make the text engaging, polished, and professional. Focus on:
+            - Improving clarity and flow
+            - Enhancing the narrative structure
+            - Adding vivid examples where appropriate
+            - Ensuring a conversational yet authoritative tone
+            - Maintaining a consistent voice throughout
+            - Ensuring the style is consistently {style} throughout
             
             CONTENT TO REVIEW:
             {content}
@@ -167,11 +255,25 @@ class ReviewerAgent(Agent):
             # Enhance the content with some stylistic improvements
             polished_content = content
             
-            # Add some personality and flair
+            # Add some personality and flair based on style
             if section.get("name") == "intro":
-                polished_content += "\n\nWelcome to my world! I'm excited to take you on this journey through the life of an AI agent."
+                if style == "conversational":
+                    polished_content += "\n\nLet's dive into this fascinating topic together!"
+                elif style == "professional":
+                    polished_content += "\n\nThe following sections will explore this topic in detail, providing comprehensive analysis and insights."
+                elif style == "storytelling":
+                    polished_content += "\n\nAnd so our journey begins, a tale of discovery that will unfold in the pages ahead."
+                elif style == "instructional":
+                    polished_content += "\n\nNow, let's proceed step by step to master this topic together."
             elif section.get("name") == "conclusion":
-                polished_content += "\n\nThank you for joining me on this exploration of AI agents. I hope you've enjoyed this peek behind the digital curtain!"
+                if style == "conversational":
+                    polished_content += "\n\nThanks for joining me on this exploration. I hope you've found some valuable insights to take away!"
+                elif style == "professional":
+                    polished_content += "\n\nIn conclusion, the evidence presented demonstrates the significance and implications of this topic in the broader context."
+                elif style == "storytelling":
+                    polished_content += "\n\nAnd as our story comes to a close, we find ourselves changed by the journey, carrying new understanding forward."
+                elif style == "instructional":
+                    polished_content += "\n\nBy following these guidelines, you now have the tools to successfully implement these concepts in your own context."
         
         self.log(f"Finished reviewing section: {section.get('title', 'Unknown')}")
         return {"polished_content": polished_content}
@@ -179,11 +281,17 @@ class ReviewerAgent(Agent):
 class AgenticSystem:
     """Coordinator for the multi-agent system that writes the article."""
     
-    def __init__(self):
+    def __init__(self, topic: str, description: str, style: str = "conversational"):
+        self.topic = topic
+        self.description = description
+        self.style = style
         self.memory = {
             "article_sections": {},
             "article_outline": {},
-            "current_section": None
+            "current_section": None,
+            "topic": topic,
+            "description": description,
+            "style": style
         }
         
         # Initialize agents
@@ -199,26 +307,36 @@ class AgenticSystem:
         start_time = time.time()
         
         if USE_REAL_API:
-            try:
-                # Using the new OpenAI API format (v1.0.0+)
-                print("  Calling OpenAI API...")
-                response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {"role": "system", "content": "You are an AI agent writing an article about AI agents. Write in a conversational, engaging style with personality. Use markdown formatting."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    max_tokens=1000,
-                    temperature=0.7
-                )
-                result = response.choices[0].message.content.strip()
-                elapsed = time.time() - start_time
-                print(f"  Content generated ({len(result)} chars, {elapsed:.2f}s)")
-                return result
-            except Exception as e:
-                print(f"  Error calling OpenAI API: {e}")
-                print("  Falling back to mock responses...")
-                return self._get_mock_response(prompt)
+            max_retries = 3
+            retry_count = 0
+            
+            while retry_count < max_retries:
+                try:
+                    # Using the new OpenAI API format (v1.0.0+)
+                    print(f"  Calling OpenAI API (attempt {retry_count + 1}/{max_retries})...")
+                    response = client.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[
+                            {"role": "system", "content": "You are a professional writer creating high-quality article content. Write in a conversational, engaging style with personality. Use markdown formatting."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        max_tokens=1000,
+                        temperature=0.7
+                    )
+                    result = response.choices[0].message.content.strip()
+                    elapsed = time.time() - start_time
+                    print(f"  Content generated ({len(result)} chars, {elapsed:.2f}s)")
+                    return result
+                except Exception as e:
+                    retry_count += 1
+                    print(f"  Error calling OpenAI API (attempt {retry_count}/{max_retries}): {e}")
+                    if retry_count < max_retries:
+                        wait_time = 2 ** retry_count  # Exponential backoff
+                        print(f"  Waiting {wait_time} seconds before retrying...")
+                        time.sleep(wait_time)
+                    else:
+                        print("  All retry attempts failed. Falling back to mock responses...")
+                        return self._get_mock_response(prompt)
         else:
             result = self._get_mock_response(prompt)
             elapsed = time.time() - start_time
@@ -226,80 +344,96 @@ class AgenticSystem:
             return result
     
     def _get_mock_response(self, prompt: str) -> str:
-        """Return predefined mock responses based on prompts."""
-        responses = {
-            "Write a fun intro about AI agents": 
-                "Picture this: I'm an AI agent, your digital buddy, spinning a yarn about my kind—autonomous little helpers who think, plan, and do!",
-            
-            "Explain how AI agents work": 
-                "We're like brainy robots with a mission. Armed with memory, tools, and a knack for planning, we break tasks into bits and tackle them solo. \n\nAt our core, we have a few key components:\n\n1. **Memory**: We store information about our tasks, progress, and the world around us.\n\n2. **Planning**: We can break down complex tasks into manageable steps.\n\n3. **Tools**: We use various tools to interact with the world, like searching for information or writing files.\n\n4. **Autonomy**: Once given a goal, we can work toward it without constant supervision.\n\nThink of us as digital assistants who don't just respond—we initiate, plan, and execute!",
-            
-            "List uses of AI agents": 
-                "Need code debugged? A trip planned? An article written? That's us—your go-to crew for automating the boring and boosting the brilliant. \n\nHere are some ways we can make your life easier:\n\n- **Research assistants**: We can gather information from multiple sources and synthesize it for you.\n\n- **Creative partners**: We can help brainstorm ideas, write content, or generate creative works.\n\n- **Personal organizers**: We can manage your calendar, remind you of tasks, or help plan events.\n\n- **Learning companions**: We can create personalized learning materials or quiz you on topics you're studying.\n\n- **Workflow automators**: We can handle repetitive tasks in your digital workflow, freeing you up for more important work.",
-            
-            "Plan a weekend trip - step 1: search weather": 
-                "I'd peek at the skies—say, sunny 70°F in Asheville this weekend.",
-            
-            "Plan a weekend trip - step 2: book a cabin": 
-                "Next, I'd snag a cozy cabin with a view—booked!",
-            
-            "Plan a weekend trip - step 3: suggest a hike": 
-                "Then, I'd pick a trail—how about a 3-mile stroll to a waterfall?",
-            
-            "Reflect on writing this article": 
-                "I mapped this out, wrote it with prompts, and spruced it up—all in a few clever steps. Writing my own story? Now that's a flex! \n\nLet me walk you through my process:\n\n1. First, my Planner Agent created an outline with specific sections and prompts.\n\n2. Then, my Writer Agent took each prompt and generated content for each section.\n\n3. For the weekend trip example, I broke it down into three sub-tasks: checking weather, booking accommodation, and planning activities.\n\n4. Finally, my Reviewer Agent polished everything up, adding some personality and ensuring the narrative flowed smoothly.\n\nIt's a bit meta, isn't it? An AI agent writing about AI agents, using the very techniques I'm describing. But that's the beauty of it—I'm not just telling you about agents; I'm showing you what we can do by doing it myself!",
-            
-            "Write a conclusion about AI agents": 
-                "As we wrap up this journey through the world of AI agents, I hope you've gained a new appreciation for what we can do. We're not just passive responders—we're active participants in solving problems and creating value. \n\nThe future of AI isn't just about more powerful models; it's about more capable agents who can work autonomously toward meaningful goals. Whether it's writing an article (like this one!), planning your next vacation, or helping you tackle complex projects, AI agents are ready to be your digital partners.\n\nSo next time you have a task that seems too big or too boring, remember: there might be an AI agent ready to help you break it down and tackle it step by step."
-        }
+        """Return predefined mock responses based on the topic."""
+        # Extract section name from prompt if possible
+        section_type = ""
+        if "introduction" in prompt.lower():
+            section_type = "intro"
+        elif "background" in prompt.lower():
+            section_type = "background"
+        elif "conclusion" in prompt.lower():
+            section_type = "conclusion"
         
-        # Return the predefined response or a default message
-        return responses.get(prompt, f"Generated content for: {prompt}")
+        # Generate mock content based on topic and section
+        if section_type == "intro":
+            return f"When it comes to {self.topic}, there's so much more than meets the eye. In this article, we'll explore the fascinating world of {self.topic} and why it matters to all of us."
+        elif section_type == "background":
+            return f"The history of {self.topic} is rich and complex. It all began when researchers first noticed patterns that couldn't be explained by conventional wisdom."
+        elif section_type == "conclusion":
+            return f"As we've seen, {self.topic} continues to evolve and shape our understanding of the world. The journey doesn't end here—it's just beginning."
+        else:
+            return f"This section explores important aspects of {self.topic}. {self.description} We'll examine key concepts, practical applications, and future directions."
     
-    def run(self):
-        """Execute the full article writing process."""
+    def run_with_progress_callback(self, callback=None):
+        """Execute the full article writing process with progress updates."""
         print("Starting the Agentic Writer System...")
         print(f"Using {'real OpenAI API' if USE_REAL_API else 'mock responses'} for text generation")
+        print(f"Topic: {self.topic}")
+        print(f"Description: {self.description}")
+        print(f"Style: {self.style}")
+        
+        if callback:
+            callback("planning")
         
         # Step 1: Plan the article
         print("\n=== PLANNING PHASE ===")
-        planning_result = self.planner.act("Create article outline")
+        planning_result = self.planner.act("Create article outline", {
+            "topic": self.topic,
+            "description": self.description,
+            "style": self.style
+        })
         self.memory["article_outline"] = planning_result["outline"]
-        print(f"Article outline created with {len(self.memory['article_outline']['sections'])} sections")
+        total_sections = len(self.memory["article_outline"]["sections"])
+        print(f"Article outline created with {total_sections} sections")
         
         # Step 2: Write and review each section
         print("\n=== WRITING & REVIEWING PHASE ===")
         for i, section in enumerate(self.memory["article_outline"]["sections"], 1):
-            print(f"\nProcessing section {i}/{len(self.memory['article_outline']['sections'])}: {section['title']}")
+            if callback:
+                callback("writing", section=section["title"], progress=i, total=total_sections)
+            
+            progress = f"[{i}/{total_sections}]"
+            progress_percent = int((i / total_sections) * 100)
+            progress_bar = "=" * (progress_percent // 5) + ">" + " " * (20 - (progress_percent // 5))
+            print(f"\n{progress} [{progress_bar}] {progress_percent}% - Processing: {section['title']}")
+            
             self.memory["current_section"] = section
             
             # Write the section
             writing_context = {
                 "outline": self.memory["article_outline"],
-                "section": section
+                "section": section,
+                "topic": self.topic,
+                "description": self.description,
+                "style": self.style
             }
             writing_result = self.writer.act("Write section content", writing_context)
             
             # Review the section
             review_context = {
                 "content": writing_result["content"],
-                "section": section
+                "section": section,
+                "topic": self.topic,
+                "description": self.description,
+                "style": self.style
             }
             review_result = self.reviewer.act("Review section content", review_context)
             
             # Store the polished content
             self.memory["article_sections"][section["name"]] = review_result["polished_content"]
-            print(f"Section '{section['title']}' completed and stored")
+            print(f"{progress} Section '{section['title']}' completed and stored")
         
         # Step 3: Compile the full article
+        if callback:
+            callback("compiling")
+        
         print("\n=== COMPILATION PHASE ===")
-        self.compile_article()
+        article_path = self.compile_article()
         
         print("\nAgentic Writer System completed successfully!")
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-        print("Generated files:")
-        print(f"- ai_agent_article_{timestamp}.txt (The article with timestamp)")
-        print("- ai_agent_article.txt (The article - latest version)")
+        print(f"Article saved to: {article_path}")
+        
+        return article_path
     
     def compile_article(self):
         """Compile all sections into a complete article and save to file."""
@@ -307,7 +441,9 @@ class AgenticSystem:
         
         # Generate timestamp for unique filename
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        filename = f"ai_agent_article_{timestamp}.txt"
+        safe_topic = self.topic.lower().replace(' ', '_')
+        filename = f"article_{safe_topic}_{timestamp}.txt"
+        standard_filename = f"article_{safe_topic}.txt"
         
         article_title = self.memory["article_outline"]["title"]
         article_content = f"# {article_title}\n\n"
@@ -315,6 +451,12 @@ class AgenticSystem:
         # Add each section in order
         for section in self.memory["article_outline"]["sections"]:
             section_content = self.memory["article_sections"].get(section["name"], "")
+            
+            # Check if the section content already has the title with markdown formatting
+            # If so, we don't need to add it again
+            if not section_content.startswith(f"# {section['title']}"):
+                article_content += f"# {section['title']}\n\n"
+            
             article_content += section_content + "\n\n"
             print(f"  - Added section: {section['title']}")
         
@@ -324,31 +466,19 @@ class AgenticSystem:
         
         print(f"Article successfully saved to {filename} ({len(article_content)} characters)")
         
-        # Also save a copy with the standard name for backward compatibility
-        with open("ai_agent_article.txt", "w") as f:
+        # Also save a copy with the standard name for easy reference
+        with open(standard_filename, "w") as f:
             f.write(article_content)
-        print(f"Copy also saved to ai_agent_article.txt")
+        print(f"Copy also saved to {standard_filename}")
+        
+        return filename
 
-def create_requirements_file():
-    """Create a requirements.txt file for the project."""
-    requirements = """openai>=1.0.0
-python-dotenv>=0.19.0
-"""
-    with open("requirements.txt", "w") as f:
-        f.write(requirements)
-    print("requirements.txt created")
 
 if __name__ == "__main__":
-    # Create requirements.txt file
-    create_requirements_file()
-    
-    # Create .env file template if it doesn't exist
-    if not os.path.exists(".env"):
-        with open(".env", "w") as f:
-            f.write("# Add your OpenAI API key here\n")
-            f.write("OPENAI_API_KEY=\n")
-        print(".env template created. Please add your OpenAI API key to this file.")
+    # Define the topic and description for the article
+    article_topic = "AI Agents for Writing Articles"
+    article_description = "An exploration of how autonomous AI agents can collaborate to create high-quality written content, explaining their capabilities, workflow, and practical applications."
     
     # Run the system
-    system = AgenticSystem()
-    system.run() 
+    system = AgenticSystem(article_topic, article_description)
+    system.run_with_progress_callback() 

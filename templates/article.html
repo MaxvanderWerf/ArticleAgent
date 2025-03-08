@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Generated Article - Agentic Writer System</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        .article-meta {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .article-content {
+            font-size: 18px;
+            line-height: 1.8;
+        }
+        .article-content h1 {
+            font-size: 32px;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .article-content h2 {
+            font-size: 24px;
+            margin-top: 30px;
+            color: #2c3e50;
+        }
+        .article-content p {
+            margin-bottom: 20px;
+        }
+        .article-content ul, .article-content ol {
+            margin-bottom: 20px;
+            padding-left: 30px;
+        }
+        .article-content blockquote {
+            border-left: 4px solid #3498db;
+            padding-left: 20px;
+            margin-left: 0;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        .actions {
+            margin-top: 40px;
+            text-align: center;
+        }
+        .button {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            margin: 0 10px;
+        }
+        .button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Your Generated Article</h1>
+    </header>
+    
+    <div class="article-meta">
+        <p><strong>Topic:</strong> {{ topic }}</p>
+        <p><strong>Description:</strong> {{ description }}</p>
+        <p><strong>Style:</strong> {{ style }}</p>
+    </div>
+    
+    <div class="article-content">
+        {{ article_html|safe }}
+    </div>
+    
+    <div class="actions">
+        <a href="/" class="button">Generate Another Article</a>
+        <a href="#" class="button" onclick="window.print(); return false;">Print Article</a>
+    </div>
+</body>
+</html> 

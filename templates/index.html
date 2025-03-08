@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agentic Writer System</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        textarea {
+            height: 100px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .error {
+            color: #e74c3c;
+            margin-bottom: 20px;
+        }
+        .style-option {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .style-option:hover {
+            background-color: #f9f9f9;
+        }
+        .style-name {
+            font-weight: bold;
+        }
+        .style-description {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Agentic Writer System</h1>
+    
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    
+    <form method="post">
+        <div class="form-group">
+            <label for="topic">Topic:</label>
+            <input type="text" id="topic" name="topic" placeholder="e.g., Sustainable Urban Gardening" value="{{ topic or '' }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="description">Description:</label>
+            <textarea id="description" name="description" placeholder="Provide a brief description of what you want the article to cover...">{{ description or '' }}</textarea>
+        </div>
+        
+        <div class="form-group">
+            <label>Writing Style:</label>
+            {% for style_id, style_desc in styles.items() %}
+            <div class="style-option">
+                <input type="radio" id="style-{{ style_id }}" name="style" value="{{ style_id }}" {% if style_id == 'conversational' %}checked{% endif %}>
+                <label for="style-{{ style_id }}">
+                    <span class="style-name">{{ style_id|capitalize }}</span>
+                    <div class="style-description">{{ style_desc }}</div>
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <button type="submit">Generate Article</button>
+    </form>
+</body>
+</html> 

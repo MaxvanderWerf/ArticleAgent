@@ -365,7 +365,7 @@ class AgenticSystem:
             return f"This section explores important aspects of {self.topic}. {self.description} We'll examine key concepts, practical applications, and future directions."
     
     def run_with_progress_callback(self, callback=None):
-        """Execute the full article writing process with progress updates."""
+        """Execute the article writing process, generating the entire article at once."""
         print("Starting the Agentic Writer System...")
         print(f"Using {'real OpenAI API' if USE_REAL_API else 'mock responses'} for text generation")
         print(f"Topic: {self.topic}")
@@ -383,82 +383,138 @@ class AgenticSystem:
             "style": self.style
         })
         self.memory["article_outline"] = planning_result["outline"]
-        total_sections = len(self.memory["article_outline"]["sections"])
-        print(f"Article outline created with {total_sections} sections")
+        print(f"Article outline created with {len(self.memory['article_outline']['sections'])} sections")
         
-        # Step 2: Write and review each section
-        print("\n=== WRITING & REVIEWING PHASE ===")
-        for i, section in enumerate(self.memory["article_outline"]["sections"], 1):
-            if callback:
-                callback("writing", section=section["title"], progress=i, total=total_sections)
-            
-            progress = f"[{i}/{total_sections}]"
-            progress_percent = int((i / total_sections) * 100)
-            progress_bar = "=" * (progress_percent // 5) + ">" + " " * (20 - (progress_percent // 5))
-            print(f"\n{progress} [{progress_bar}] {progress_percent}% - Processing: {section['title']}")
-            
-            self.memory["current_section"] = section
-            
-            # Write the section
-            writing_context = {
-                "outline": self.memory["article_outline"],
-                "section": section,
-                "topic": self.topic,
-                "description": self.description,
-                "style": self.style
-            }
-            writing_result = self.writer.act("Write section content", writing_context)
-            
-            # Review the section
-            review_context = {
-                "content": writing_result["content"],
-                "section": section,
-                "topic": self.topic,
-                "description": self.description,
-                "style": self.style
-            }
-            review_result = self.reviewer.act("Review section content", review_context)
-            
-            # Store the polished content
-            self.memory["article_sections"][section["name"]] = review_result["polished_content"]
-            print(f"{progress} Section '{section['title']}' completed and stored")
+        # Step 2: Generate the entire article at once
+        print("\n=== WRITING PHASE ===")
+        if callback:
+            callback("writing")
         
-        # Step 3: Compile the full article
+        article_content = self.generate_full_article()
+        
+        # Step 3: Compile and save the article
         if callback:
             callback("compiling")
         
         print("\n=== COMPILATION PHASE ===")
-        article_path = self.compile_article()
+        article_path = self.save_article(article_content)
         
         print("\nAgentic Writer System completed successfully!")
         print(f"Article saved to: {article_path}")
         
         return article_path
-    
-    def compile_article(self):
-        """Compile all sections into a complete article and save to file."""
-        print("Compiling all sections into the final article...")
+
+    def generate_full_article(self):
+        """Generate the entire article content at once."""
+        outline = self.memory["article_outline"]
+        sections = outline["sections"]
+        
+        # Create a detailed prompt for the entire article
+        sections_prompt = ""
+        for i, section in enumerate(sections, 1):
+            sections_prompt += f"{i}. {section['title']}: {section['prompt']}\n"
+        
+        # Style-specific instructions
+        style_instructions = {
+            "conversational": "Write in a friendly, casual tone as if talking to a friend. Use personal pronouns, contractions, and occasional rhetorical questions.",
+            "professional": "Write in a formal, authoritative tone suitable for business or academic contexts. Use precise language, avoid contractions, and maintain a structured approach.",
+            "storytelling": "Write in a narrative style with vivid descriptions, anecdotes, and emotional elements. Create a journey for the reader with a clear beginning, middle, and end.",
+            "instructional": "Write in a clear, step-by-step manner with practical advice and actionable tips. Use imperative verbs and focus on helping the reader achieve specific outcomes."
+        }
+        
+        style_instruction = style_instructions.get(self.style, style_instructions["conversational"])
+        
+        full_article_prompt = f"""
+        Write a complete, cohesive article on the topic: "{self.topic}"
+        
+        Description: {self.description}
+        
+        Article title: {outline["title"]}
+        
+        The article should include the following sections:
+        {sections_prompt}
+        
+        Style instruction: {style_instruction}
+        
+        Guidelines:
+        1. {style_instruction}
+        2. Write a cohesive article where sections flow naturally into each other
+        3. Use markdown formatting for headings (# for main title, ## for section titles, ### for subsections)
+        4. Include relevant examples, metaphors, or analogies to illustrate concepts
+        5. Address the reader directly to create a connection
+        6. Aim for approximately 2000-3000 words for the entire article
+        7. Ensure transitions between sections are smooth and logical
+        8. Format each section title as "## Section Title" (level 2 heading)
+        
+        Write the complete article with all sections.
+        """
+        
+        print("Generating the complete article...")
+        start_time = time.time()
+        
+        if USE_REAL_API:
+            max_retries = 3
+            retry_count = 0
+            
+            while retry_count < max_retries:
+                try:
+                    print(f"  Calling OpenAI API (attempt {retry_count + 1}/{max_retries})...")
+                    response = client.chat.completions.create(
+                        model="gpt-3.5-turbo-16k",  # Using a model with larger context
+                        messages=[
+                            {"role": "system", "content": "You are a professional writer creating a high-quality article. Write a cohesive, engaging piece that flows naturally between sections."},
+                            {"role": "user", "content": full_article_prompt}
+                        ],
+                        max_tokens=4000,
+                        temperature=0.7
+                    )
+                    article_content = response.choices[0].message.content.strip()
+                    elapsed = time.time() - start_time
+                    print(f"  Article generated ({len(article_content)} chars, {elapsed:.2f}s)")
+                    return article_content
+                except Exception as e:
+                    retry_count += 1
+                    print(f"  Error calling OpenAI API (attempt {retry_count}/{max_retries}): {e}")
+                    if retry_count < max_retries:
+                        wait_time = 2 ** retry_count  # Exponential backoff
+                        print(f"  Waiting {wait_time} seconds before retrying...")
+                        time.sleep(wait_time)
+                    else:
+                        print("  All retry attempts failed. Falling back to mock responses...")
+                        return self._generate_mock_article()
+        else:
+            article_content = self._generate_mock_article()
+            elapsed = time.time() - start_time
+            print(f"  Mock article generated ({len(article_content)} chars, {elapsed:.2f}s)")
+            return article_content
+
+    def _generate_mock_article(self):
+        """Generate a mock article for testing purposes."""
+        outline = self.memory["article_outline"]
+        
+        mock_article = f"# {outline['title']}\n\n"
+        
+        for section in outline["sections"]:
+            mock_article += f"## {section['title']}\n\n"
+            
+            if section["name"] == "intro":
+                mock_article += f"Welcome to this article about {self.topic}! {self.description} In the following sections, we'll explore various aspects of this fascinating subject.\n\n"
+            elif section["name"] == "conclusion":
+                mock_article += f"In conclusion, {self.topic} is an important area that continues to evolve. We've covered the key aspects and applications, and hope you've gained valuable insights.\n\n"
+            else:
+                mock_article += f"This section explores {section['title'].lower()} related to {self.topic}. There are many interesting aspects to consider here, from theoretical foundations to practical applications.\n\n"
+        
+        return mock_article
+
+    def save_article(self, article_content):
+        """Save the generated article to files."""
+        print("Saving the article to files...")
         
         # Generate timestamp for unique filename
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         safe_topic = self.topic.lower().replace(' ', '_')
         filename = f"article_{safe_topic}_{timestamp}.txt"
         standard_filename = f"article_{safe_topic}.txt"
-        
-        article_title = self.memory["article_outline"]["title"]
-        article_content = f"# {article_title}\n\n"
-        
-        # Add each section in order
-        for section in self.memory["article_outline"]["sections"]:
-            section_content = self.memory["article_sections"].get(section["name"], "")
-            
-            # Check if the section content already has the title with markdown formatting
-            # If so, we don't need to add it again
-            if not section_content.startswith(f"# {section['title']}"):
-                article_content += f"# {section['title']}\n\n"
-            
-            article_content += section_content + "\n\n"
-            print(f"  - Added section: {section['title']}")
         
         # Save to file
         with open(filename, "w") as f:

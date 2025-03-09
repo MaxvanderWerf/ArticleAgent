@@ -100,6 +100,19 @@
             {% endfor %}
         </div>
         
+        <div class="form-group">
+            <label>Publishing Platform:</label>
+            {% for platform_id, platform_desc in platforms.items() %}
+            <div class="style-option">
+                <input type="radio" id="platform-{{ platform_id }}" name="platform" value="{{ platform_id }}" {% if platform_id == 'medium' %}checked{% endif %}>
+                <label for="platform-{{ platform_id }}">
+                    <span class="style-name">{{ platform_id|capitalize }}</span>
+                    <div class="style-description">{{ platform_desc }}</div>
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+        
         <button type="submit">Generate Article</button>
     </form>
 </body>

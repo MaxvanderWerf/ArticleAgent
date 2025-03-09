@@ -23,6 +23,15 @@ WRITING_STYLES = {
     "instructional": "Clear, step-by-step guidance with practical advice"
 }
 
+# Available publishing platforms
+PUBLISHING_PLATFORMS = {
+    "medium": "Medium.com - Popular blogging platform with a wide audience",
+    "substack": "Substack - Newsletter platform with a subscription model",
+    "dev.to": "Dev.to - Community for developers with technical content",
+    "linkedin": "LinkedIn Articles - Professional content for your network",
+    "none": "No specific platform - General purpose article"
+}
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     """Handle the main page with the form for article generation."""
@@ -31,12 +40,14 @@ def index():
         topic = request.form.get('topic', '').strip()
         description = request.form.get('description', '').strip()
         style = request.form.get('style', 'conversational')
+        platform = request.form.get('platform', 'none')
         
         # Validate inputs
         if not topic:
             return render_template('index.html', 
                                   error="Please enter a topic", 
                                   styles=WRITING_STYLES,
+                                  platforms=PUBLISHING_PLATFORMS,
                                   topic=topic,
                                   description=description)
         
@@ -44,12 +55,13 @@ def index():
         session['topic'] = topic
         session['description'] = description
         session['style'] = style
+        session['platform'] = platform
         
         # Redirect to the processing page
         return redirect(url_for('process_article'))
     
     # GET request - show the form
-    return render_template('index.html', styles=WRITING_STYLES)
+    return render_template('index.html', styles=WRITING_STYLES, platforms=PUBLISHING_PLATFORMS)
 
 @app.route('/processing')
 def process_article():

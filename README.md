@@ -75,6 +75,22 @@ Each section is written in a narrative, conversational style that makes the conc
 - Ability to incorporate feedback and revise content
 - Export to different formats (Markdown, HTML, etc.)
 
+## API Setup
+
+This project uses two external APIs:
+
+1. **OpenAI API** - For generating article content
+   - Sign up at [OpenAI](https://platform.openai.com/)
+   - Get your API key from the dashboard
+   - Add it to your .env file as `OPENAI_API_KEY=your_key_here`
+
+2. **Serper API** (optional) - For web research on platform-specific writing styles
+   - Sign up at [Serper.dev](https://serper.dev/)
+   - Get your API key from the dashboard
+   - Add it to your .env file as `SERPER_API_KEY=your_key_here`
+
+If you don't provide a Serper API key, the system will use mock search results instead.
+
 ---
 
 This project demonstrates the creative potential of AI agents as autonomous content creators, not just tools for human use. It represents a vision of AI systems that can reflect on their own capabilities and communicate them effectively to humans.

@@ -157,6 +157,57 @@ def show_article():
                           style=metadata.get('style', 'conversational'),
                           article_html=html_content)
 
+@app.route('/article/<article_id>')
+def show_specific_article(article_id):
+    """
+    Page that displays a specific article by ID.
+    """
+    articles = get_article_history()
+    
+    # Find the article with the matching ID
+    article = None
+    for a in articles:
+        if a.get('id') == article_id:
+            article = a
+            break
+    
+    if not article:
+        return render_template('article.html', 
+                              topic="Article Not Found",
+                              description="The requested article could not be found.",
+                              style="",
+                              article_html="<p>The requested article could not be found.</p>")
+    
+    # Read the article file
+    from src.utils.config import ARTICLES_DIR
+    article_path = os.path.join(ARTICLES_DIR, article["article_file"])
+    
+    try:
+        with open(article_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except:
+        content = "Error: Could not read article file."
+    
+    # Read the metadata file
+    from src.utils.config import METADATA_DIR
+    metadata_path = os.path.join(METADATA_DIR, article["metadata_file"])
+    
+    try:
+        with open(metadata_path, 'r', encoding='utf-8') as f:
+            import json
+            metadata = json.load(f)
+    except:
+        metadata = {}
+    
+    # Convert markdown to HTML
+    html_content = markdown.markdown(content)
+    
+    return render_template('article.html',
+                          topic=metadata.get('topic', 'Unknown Topic'),
+                          description=metadata.get('description', ''),
+                          style=metadata.get('style', 'conversational'),
+                          article_html=html_content)
+
 @app.route('/api/progress')
 def get_progress():
     """
@@ -181,6 +232,19 @@ def list_articles():
     """
     articles = get_article_history()
     return jsonify(articles)
+
+@app.route('/articles')
+def show_articles_page():
+    """
+    Page that displays all generated articles.
+    """
+    articles = get_article_history()
+    
+    # Add IDs to articles for linking
+    for i, article in enumerate(articles):
+        article['id'] = f"article_{i}"
+    
+    return render_template('articles.html', articles=articles)
 
 if __name__ == '__main__':
     app.run(debug=True) 

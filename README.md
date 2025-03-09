@@ -11,69 +11,111 @@ The core idea is to build an agentic AI system that:
 - **Showcases Capabilities**: Includes sections on how AI agents work, their practical uses, an example task (planning a weekend trip), and a meta-reflection on its own writing process.
 - **Uses Multiple Prompts**: Each section is driven by unique prompts, simulating a multi-agent workflow.
 - **Demonstrates Tools**: Integrates basic tool-like functionality to extend beyond simple text generation.
-- **Outputs Files**: Generates ai_agent_article.txt (the article) and timestamped versions for tracking changes.
+- **Outputs Files**: Generates articles with metadata in an organized folder structure.
 
 This isn't just about explaining AI agents; it's about proving they can create something tangible and creative, reflecting an innovative spin on the concept of agentic AI.
 
 ## System Architecture
 
-The system consists of three specialized agents:
+The system consists of four specialized agents:
 
 1. **Planner Agent**: Creates an article outline with sections and assigns prompts.
 2. **Writer Agent**: Generates content for each section using predefined prompts.
 3. **Reviewer Agent**: Polishes the text for readability and adds personality.
+4. **Humanizer Agent**: Adds a human touch to make the content feel more authentic.
 
 These agents are coordinated by a central `AgenticSystem` class that manages the workflow and memory.
+
+## Project Structure
+
+```
+ArticleAgent/
+├── articles/              # Generated articles
+│   └── metadata/          # Article metadata in JSON format
+├── src/                   # Source code
+│   ├── agents/            # Agent implementations
+│   │   ├── base.py        # Base Agent class
+│   │   ├── planner.py     # Planner Agent
+│   │   ├── writer.py      # Writer Agent
+│   │   ├── reviewer.py    # Reviewer Agent
+│   │   └── humanizer.py   # Humanizer Agent
+│   ├── tools/             # Tool implementations
+│   │   └── web_research.py # Web Research Tool
+│   ├── utils/             # Utility modules
+│   │   ├── config.py      # Configuration settings
+│   │   ├── file_manager.py # File management utilities
+│   │   └── llm.py         # LLM interaction utilities
+│   ├── agentic_system.py  # Main system class
+│   └── __init__.py        # Package initialization
+├── templates/             # Web UI templates
+│   ├── index.html         # Home page
+│   ├── processing.html    # Processing page
+│   └── article.html       # Article display page
+├── app.py                 # Web application
+├── main.py                # Command-line interface
+├── requirements.txt       # Dependencies
+└── README.md              # Project documentation
+```
 
 ## Setup and Usage
 
 ### Requirements
 - Python 3.x
-- OpenAI Python package (optional, for API integration)
-- python-dotenv (optional, for API key management)
+- Dependencies listed in requirements.txt
 
 ### API Integration
 To use the OpenAI API instead of mock responses:
 1. Create a `.env` file in the project directory
 2. Add your OpenAI API key: `OPENAI_API_KEY=your_api_key_here`
-3. Install required packages: `pip install openai python-dotenv`
+3. Optionally, add a Serper API key for web research: `SERPER_API_KEY=your_serper_key_here`
 
-### Running the System
-1. Clone this repository
-2. Install dependencies (if using API): `pip install -r requirements.txt`
-3. Run the script:
-   ```
-   python agentic_writer.py
-   ```
-4. The system will generate:
-   - `ai_agent_article_TIMESTAMP.txt`: The complete article with timestamp
-   - `ai_agent_article.txt`: The latest version of the article
+### Installation
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/ArticleAgent.git
+cd ArticleAgent
 
-### Extending the System
-The current implementation can use either mock responses or the OpenAI API. To extend it:
-- Add more sophisticated tools for research, fact-checking, etc.
-- Implement more complex agent interactions and memory structures
-- Try different LLM providers or models
+# Create a virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### Command-Line Usage
+```bash
+# Generate an article
+python main.py --topic "AI Agents" --description "How AI agents collaborate" --style conversational --platform medium
+
+# List available writing styles
+python main.py --list-styles
+
+# List available publishing platforms
+python main.py --list-platforms
+
+# List previously generated articles
+python main.py --list-articles
+```
+
+### Web Interface
+```bash
+# Start the web server
+python app.py
+
+# Open your browser and navigate to http://localhost:5000
+```
 
 ## Output
 
-The system produces an article with the following sections:
-- Introduction
-- How AI Agents Work
-- What You Can Do with AI Agents
-- Example: Planning a Weekend Trip
-- Reflection: How I Wrote This Article
-- Conclusion
+The system produces articles in the `articles` directory with corresponding metadata in `articles/metadata`. Each article includes:
 
-Each section is written in a narrative, conversational style that makes the concept of AI agents accessible and engaging.
-
-## Future Enhancements
-
-- Integration with other LLM APIs (Anthropic, etc.)
-- More sophisticated tool use (web search, data analysis)
-- Enhanced inter-agent communication
-- Ability to incorporate feedback and revise content
-- Export to different formats (Markdown, HTML, etc.)
+- The full article text in Markdown format
+- A JSON metadata file with:
+  - Topic, description, style, and platform
+  - Generation date and word count
+  - Title and other article metadata
+  - Generation process details (platform style, research summary, outline, improvements)
 
 ## API Setup
 
@@ -89,7 +131,16 @@ This project uses two external APIs:
    - Get your API key from the dashboard
    - Add it to your .env file as `SERPER_API_KEY=your_key_here`
 
-If you don't provide a Serper API key, the system will use mock search results instead.
+If you don't provide API keys, the system will use mock responses instead.
+
+## Future Enhancements
+
+- Integration with other LLM APIs (Anthropic, etc.)
+- More sophisticated tool use (web search, data analysis)
+- Enhanced inter-agent communication
+- Ability to incorporate feedback and revise content
+- Export to different formats (HTML, PDF, etc.)
+- Support for more publishing platforms and writing styles
 
 ---
 

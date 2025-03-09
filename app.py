@@ -81,18 +81,18 @@ def generate():
     # Create the agentic system
     system = AgenticSystem(topic, description, style, platform)
     
-    # Start the generation process in a separate thread
-    import threading
-    thread = threading.Thread(target=system.run_with_progress_callback, 
-                             args=(progress_callback,))
-    thread.daemon = True
-    thread.start()
-    
-    # Return initial response
-    return jsonify({
-        'status': 'started',
-        'message': f'Generating article about {topic}'
-    })
+    # Generate the article synchronously (faster with our optimizations)
+    try:
+        system.generate_full_article()
+        return jsonify({
+            'status': 'complete',
+            'redirect': url_for('show_article')
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 def progress_callback(phase, section=None, progress=None, total=None):
     """
@@ -119,9 +119,10 @@ def show_article():
     
     if not articles:
         return render_template('article.html', 
-                              title="No Article Found",
-                              content="<p>No articles have been generated yet.</p>",
-                              metadata={})
+                              topic="No Article Found",
+                              description="No articles have been generated yet.",
+                              style="",
+                              article_html="<p>No articles have been generated yet.</p>")
     
     # Get the most recent article
     latest_article = articles[0]
@@ -151,9 +152,10 @@ def show_article():
     html_content = markdown.markdown(content)
     
     return render_template('article.html',
-                          title=metadata.get('title', 'Generated Article'),
-                          content=html_content,
-                          metadata=metadata)
+                          topic=metadata.get('topic', 'Unknown Topic'),
+                          description=metadata.get('description', ''),
+                          style=metadata.get('style', 'conversational'),
+                          article_html=html_content)
 
 @app.route('/api/progress')
 def get_progress():

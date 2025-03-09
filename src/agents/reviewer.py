@@ -31,12 +31,21 @@ class ReviewerAgent(Agent):
         style = context.get("style", "conversational")
         platform = context.get("platform")
         
+        # If this is a summarize improvements task, handle it separately
+        if task.lower().startswith("summarize"):
+            if "original_article" in context and "improved_article" in context:
+                return {
+                    "improvements": self._summarize_improvements(
+                        context["original_article"], 
+                        context["improved_article"]
+                    )
+                }
+            return {"improvements": {}}
+        
         self.log("Reviewing and improving article content")
         
-        # Perform different types of improvements
-        improved_content = self._improve_readability(article_content, style, platform)
-        improved_content = self._improve_engagement(improved_content, style, platform)
-        improved_content = self._improve_coherence(improved_content, style, platform)
+        # Improve the article in a single call
+        improved_content = self._improve_article(article_content, style, platform)
         
         return {
             "improved_article": improved_content,
@@ -44,9 +53,9 @@ class ReviewerAgent(Agent):
             "improvements_made": self._summarize_improvements(article_content, improved_content)
         }
     
-    def _improve_readability(self, content: str, style: str, platform: str = None) -> str:
+    def _improve_article(self, content: str, style: str, platform: str = None) -> str:
         """
-        Improve the readability of the article.
+        Improve the article in a single comprehensive pass.
         
         Args:
             content: The article content
@@ -59,84 +68,41 @@ class ReviewerAgent(Agent):
         platform_str = f" for {platform}" if platform else ""
         
         prompt = f"""
-        Review and improve the readability of this article{platform_str}. 
+        Review and improve this article{platform_str} to make it more engaging, readable, and coherent.
         
         Focus on:
-        - Simplifying complex sentences
-        - Breaking up long paragraphs
-        - Adding subheadings where appropriate
-        - Ensuring consistent tone in {style} style
-        - Improving transitions between ideas
+        1. READABILITY:
+           - Simplify complex sentences
+           - Break up long paragraphs
+           - Add subheadings where appropriate
+           - Ensure consistent tone in {style} style
+           - Improve transitions between ideas
         
-        Make the article more accessible without changing the core content or meaning.
+        2. ENGAGEMENT:
+           - Enhance the hook in the introduction
+           - Add compelling examples or anecdotes where appropriate
+           - Make the conclusion more impactful
+           - Add rhetorical questions or thought-provoking statements
         
-        ARTICLE:
-        {content}
+        3. COHERENCE:
+           - Ensure logical progression of ideas
+           - Strengthen connections between sections
+           - Remove redundancies or repetitive points
+           - Ensure consistent terminology throughout
         
-        IMPROVED ARTICLE:
-        """
+        Example of good improvements:
         
-        return generate_text(prompt)
-    
-    def _improve_engagement(self, content: str, style: str, platform: str = None) -> str:
-        """
-        Improve the engagement factor of the article.
+        ORIGINAL:
+        ```
+        AI tools can help with content creation. They use algorithms to generate text. Many businesses are using them now.
+        ```
         
-        Args:
-            content: The article content
-            style: The writing style
-            platform: Optional publishing platform
-            
-        Returns:
-            Improved article content
-        """
-        platform_str = f" for {platform}" if platform else ""
+        IMPROVED:
+        ```
+        AI-powered writing assistants have revolutionized content creation, offering a helping hand to writers across industries. These sophisticated tools leverage advanced algorithms to analyze patterns in language and generate human-like text that resonates with readers. From small startups to Fortune 500 companies, organizations are increasingly incorporating these AI collaborators into their content workflows—and seeing impressive results.
+        ```
         
-        prompt = f"""
-        Review and improve the engagement of this article{platform_str}.
-        
-        Focus on:
-        - Adding compelling examples or anecdotes where appropriate
-        - Enhancing the hook in the introduction
-        - Making the conclusion more impactful
-        - Adding rhetorical questions or thought-provoking statements
-        - Maintaining a {style} style throughout
-        
-        Make the article more engaging without significantly increasing its length or changing its core message.
-        
-        ARTICLE:
-        {content}
-        
-        IMPROVED ARTICLE:
-        """
-        
-        return generate_text(prompt)
-    
-    def _improve_coherence(self, content: str, style: str, platform: str = None) -> str:
-        """
-        Improve the coherence and flow of the article.
-        
-        Args:
-            content: The article content
-            style: The writing style
-            platform: Optional publishing platform
-            
-        Returns:
-            Improved article content
-        """
-        platform_str = f" for {platform}" if platform else ""
-        
-        prompt = f"""
-        Review and improve the coherence and flow of this article{platform_str}.
-        
-        Focus on:
-        - Ensuring logical progression of ideas
-        - Strengthening connections between sections
-        - Removing redundancies or repetitive points
-        - Ensuring consistent terminology throughout
-        - Maintaining a {style} style
-        
-        Make the article flow more naturally without changing its core structure or message.
+        Please maintain the article's core structure and message while making it more polished and professional. Return the complete improved article.
         
         ARTICLE:
         {content}

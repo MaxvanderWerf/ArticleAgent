@@ -15,7 +15,7 @@ class WriterAgent(Agent):
     
     def act(self, task: str, context: Optional[Dict] = None) -> Dict:
         """
-        Generate content for an article section based on the outline.
+        Generate content for an article based on the outline.
         
         Args:
             task: Description of the writing task
@@ -29,60 +29,107 @@ class WriterAgent(Agent):
             
         outline = context.get("outline", "")
         sections = context.get("sections", [])
+        title = context.get("title", "Untitled Article")
         style = context.get("style", "conversational")
         platform = context.get("platform")
         research = context.get("research", {})
         
         self.log("Generating article content")
         
-        # Generate content for each section
-        for i, section in enumerate(sections):
-            self.log(f"Writing section {i+1}/{len(sections)}: {section['heading']}")
-            
-            # Get research relevant to this section
-            section_research = self._get_relevant_research(section["heading"], research)
-            
-            # Generate content for this section
-            section_content = self._generate_section_content(
-                section["heading"],
-                section["bullet_points"],
-                style,
-                platform,
-                section_research
-            )
-            
-            # Update the section with the generated content
-            sections[i]["content"] = section_content
-        
-        # Generate introduction and conclusion if they don't exist
-        has_intro = any("intro" in section["heading"].lower() for section in sections)
-        has_conclusion = any("conclu" in section["heading"].lower() for section in sections)
-        
-        introduction = ""
-        conclusion = ""
-        
-        if not has_intro:
-            self.log("Generating introduction")
-            introduction = self._generate_introduction(sections, style, platform, research)
-            
-        if not has_conclusion:
-            self.log("Generating conclusion")
-            conclusion = self._generate_conclusion(sections, style, platform)
-        
-        # Assemble the full article
-        article_content = self._assemble_article(
-            context.get("title", "Untitled Article"),
-            introduction,
+        # Generate the entire article in one call
+        article_content = self._generate_full_article(
+            title,
+            outline,
             sections,
-            conclusion
+            style,
+            platform,
+            research
         )
         
         return {
             "article_content": article_content,
-            "sections": sections,
-            "introduction": introduction,
-            "conclusion": conclusion
+            "title": title
         }
+    
+    def _generate_full_article(self, title: str, outline: str, sections: List[Dict], 
+                              style: str, platform: str = None, research: Dict = None) -> str:
+        """
+        Generate the full article content in a single LLM call.
+        
+        Args:
+            title: The article title
+            outline: The article outline
+            sections: List of section dictionaries with headings and bullet points
+            style: The writing style to use
+            platform: Optional publishing platform
+            research: Optional research information
+            
+        Returns:
+            Complete article text
+        """
+        platform_str = f" for {platform}" if platform else ""
+        research_summary = research.get("summary", "") if research else ""
+        
+        # Format sections for the prompt
+        sections_str = ""
+        for i, section in enumerate(sections):
+            heading = section["heading"]
+            bullet_points = "\n".join([f"- {point}" for point in section["bullet_points"]])
+            sections_str += f"\n## Section {i+1}: {heading}\nKey points to cover:\n{bullet_points}\n"
+        
+        # Create a comprehensive prompt with examples
+        prompt = f"""
+        Write a complete, well-structured article titled "{title}"{platform_str}.
+        
+        Style: {style}
+        
+        Here's the outline of the article:
+        {outline}
+        
+        Here are the sections with key points to cover:
+        {sections_str}
+        
+        Research summary to incorporate:
+        {research_summary}
+        
+        Guidelines:
+        1. Write a compelling introduction that hooks the reader
+        2. Develop each section fully based on the key points provided
+        3. Include a thoughtful conclusion that summarizes the main points
+        4. Use a {style} writing style throughout
+        5. Format the article in Markdown with proper headings (# for title, ## for sections)
+        6. Make the content engaging, informative, and well-structured
+        7. Use concrete examples and avoid generic statements
+        8. Ensure smooth transitions between sections
+        
+        Example of good article structure:
+        ```
+        # How AI is Transforming Content Creation
+        
+        In today's digital landscape, artificial intelligence is revolutionizing how we create and consume content. From automated blog posts to personalized recommendations, AI tools are becoming indispensable for content creators.
+        
+        ## Understanding AI Content Tools
+        
+        AI content tools leverage natural language processing to generate human-like text. These systems analyze patterns in existing content to produce new material that matches specific styles and tones.
+        
+        The most advanced tools can:
+        - Adapt to different writing styles and brand voices
+        - Generate content across multiple formats and topics
+        - Learn from feedback to improve output quality
+        
+        ## Practical Applications in Marketing
+        
+        Marketing teams are increasingly adopting AI tools to scale their content production...
+        
+        ## Conclusion
+        
+        As AI technology continues to evolve, the relationship between human creators and AI tools will become increasingly collaborative. The future of content creation lies not in choosing between human or AI-generated content, but in finding the optimal balance between the two.
+        ```
+        
+        Please write the complete article now, maintaining a cohesive flow throughout.
+        """
+        
+        return generate_text(prompt)
     
     def _generate_section_content(self, heading: str, bullet_points: List[str], 
                                  style: str, platform: str = None, 

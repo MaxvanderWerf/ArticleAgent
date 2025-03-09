@@ -34,18 +34,17 @@ class HumanizerAgent(Agent):
         
         self.log("Adding human touch to article content")
         
-        # Apply humanizing techniques
-        humanized_content = self._add_personal_voice(article_content, style, platform)
-        humanized_content = self._add_imperfections(humanized_content, style)
+        # Humanize the article in a single call
+        humanized_content = self._humanize_article(article_content, style, platform)
         
         return {
             "humanized_article": humanized_content,
             "original_article": article_content
         }
     
-    def _add_personal_voice(self, content: str, style: str, platform: str = None) -> str:
+    def _humanize_article(self, content: str, style: str, platform: str = None) -> str:
         """
-        Add a personal voice to the article.
+        Add a human touch to the article in a single comprehensive pass.
         
         Args:
             content: The article content
@@ -53,96 +52,56 @@ class HumanizerAgent(Agent):
             platform: Optional publishing platform
             
         Returns:
-            Article content with personal voice
+            Humanized article content
         """
         platform_str = f" for {platform}" if platform else ""
         
+        # Select a few personality traits to incorporate
+        personality_traits = random.sample([
+            "thoughtful", "curious", "empathetic", "enthusiastic", 
+            "analytical", "reflective", "practical", "creative"
+        ], 3)
+        traits_str = ", ".join(personality_traits)
+        
         prompt = f"""
-        Revise this article{platform_str} to add a more authentic, human voice.
+        Revise this article{platform_str} to make it feel more authentically human and engaging.
         
-        Focus on:
-        - Adding occasional first-person perspective where appropriate
-        - Incorporating personal anecdotes or reflections that feel genuine
-        - Using more conversational language and contractions
-        - Adding rhetorical questions that engage the reader directly
-        - Maintaining a {style} style throughout
+        Add these human elements:
+        1. PERSONAL VOICE:
+           - Add occasional first-person perspective where appropriate
+           - Incorporate personal anecdotes or reflections that feel genuine
+           - Use more conversational language and contractions
+           - Add rhetorical questions that engage the reader directly
         
-        Make the article feel like it was written by a real person with genuine experiences and opinions,
-        without changing the core content or expertise level.
+        2. NATURAL IMPERFECTIONS (if appropriate for the style):
+           - Add occasional parenthetical asides or tangential thoughts
+           - Include a few natural thought transitions (e.g., "Actually, that reminds me...")
+           - Add one or two places where a point is slightly reconsidered
+           - Incorporate subtle verbal tics that real writers use (e.g., "you know," "I think," "perhaps")
+        
+        3. PERSONALITY:
+           - Infuse the writing with these personality traits: {traits_str}
+           - The personality should come through in the writing style, word choice, and perspective
+           - Don't explicitly state "I am {traits_str}" - show it through the writing
+        
+        Example of good humanization:
+        
+        ORIGINAL:
+        ```
+        Machine learning algorithms process data to identify patterns. These patterns enable predictions about new data.
+        ```
+        
+        HUMANIZED:
+        ```
+        I've always been fascinated by how machine learning algorithms can sift through mountains of data to uncover hidden patterns. (Trust me, after spending countless late nights debugging my first neural network, this fascination was hard-earned!) These patterns, once identified, allow us to make surprisingly accurate predictions about new data—though, as you might expect, the real-world results aren't always as clean as the textbooks suggest.
+        ```
+        
+        Please maintain the article's core content and expertise level while making it feel like it was written by a real person with genuine experiences and opinions. The humanization should be subtle and appropriate for a {style} style.
         
         ARTICLE:
         {content}
         
         HUMANIZED ARTICLE:
-        """
-        
-        return generate_text(prompt)
-    
-    def _add_imperfections(self, content: str, style: str) -> str:
-        """
-        Add subtle imperfections to make the content feel more human.
-        
-        Args:
-            content: The article content
-            style: The writing style
-            
-        Returns:
-            Article content with subtle imperfections
-        """
-        # Only apply this to conversational or storytelling styles
-        if style not in ["conversational", "storytelling"]:
-            return content
-            
-        prompt = f"""
-        Revise this article to add subtle, natural imperfections that make it feel more authentically human.
-        
-        Focus on:
-        - Adding occasional parenthetical asides or tangential thoughts
-        - Including a few natural thought transitions (e.g., "Actually, that reminds me...")
-        - Adding one or two places where a point is slightly reconsidered
-        - Incorporating subtle verbal tics that real writers use (e.g., "you know," "I think," "perhaps")
-        
-        The imperfections should be subtle and sparse - the article should still be professional and well-written,
-        just with a touch of human authenticity. Don't overdo it.
-        
-        ARTICLE:
-        {content}
-        
-        HUMANIZED ARTICLE:
-        """
-        
-        return generate_text(prompt)
-    
-    def _add_personality_traits(self, content: str, traits: List[str] = None) -> str:
-        """
-        Add specific personality traits to the writing.
-        
-        Args:
-            content: The article content
-            traits: List of personality traits to incorporate
-            
-        Returns:
-            Article content with personality traits
-        """
-        if not traits:
-            # Default traits if none specified
-            traits = ["thoughtful", "curious", "empathetic"]
-            
-        traits_str = ", ".join(traits)
-        
-        prompt = f"""
-        Revise this article to incorporate the following personality traits: {traits_str}.
-        
-        The personality should come through in the writing style, word choice, and perspective,
-        without explicitly stating "I am {traits_str}."
-        
-        Make these traits subtle but noticeable, as if the article was written by someone with these characteristics.
-        Don't change the core content or expertise level of the article.
-        
-        ARTICLE:
-        {content}
-        
-        PERSONALITY-INFUSED ARTICLE:
         """
         
         return generate_text(prompt) 
